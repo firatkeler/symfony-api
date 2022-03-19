@@ -2,10 +2,12 @@
 
 namespace App\Controller;
 
-use http\Env\Request;
+use App\Entity\BlogPost;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Serializer\Serializer;
 
 /**
  * @Route("/blog")
@@ -30,12 +32,15 @@ class BlogController extends AbstractController {
     ];
 
     /**
-     * @Route("/{page}", name="blog_list")
+     * @Route("/{page}", name="blog_list", defaults={"page": 5}, requirements={"page"="\d+"})
      */
     public function list($page = 1, Request $request) {
+        $limit = $request->get('limit', 10);
+
         return $this->json(
             [
                 'page' => $page,
+                'limit' => $limit,
                 'data' => self::POSTS
             ]
         );
@@ -50,12 +55,29 @@ class BlogController extends AbstractController {
         );
     }
 
+//    /**
+//     * @Route("/{slug}", name="blog_by_slug")
+//     */
+//    public function postBySlug($slug) {
+//        return new JsonResponse(
+//            self::POSTS[array_search($slug, array_column(self::POSTS, 'slug'))]
+//        );
+//    }
+
     /**
-     * @Route("/{slug}", name="blog_by_slug")
+     * @Route("/add", name="blog_add", methods={"POST"})
      */
-    public function postBySlug($slug) {
-        return new JsonResponse(
-            self::POSTS[array_search($slug, array_column(self::POSTS, 'slug'))]
-        );
+    public function add(Request $request) {
+
+        /** @var Serializer $serializer */
+        $serializer = $this->get('serializer');
+
+        $blogPost = $serializer->deserialize($request->getContent(), BlogPost::class, 'json');
+
+        $em = $this->getDoctrine()->getManager();
+        $em->persist($blogPost);
+        $em->flush();
+
+        return $this->json($blogPost);
     }
 }
